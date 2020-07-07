@@ -60,7 +60,6 @@ class ToDoListViewController: UITableViewController {
         var textFieldAlert = UITextField()
         //Creating UIAlertController
         let alert = UIAlertController(title: "Hey! It seems you want to add a new task. Let's do it.", message: nil, preferredStyle: .alert)
-        let errorAlert = UIAlertController(title: "Hey! You didn't specify a task :(", message: "You want to crash the app, don't you? ", preferredStyle: .alert)
         //Creating an UIAlertAction variable to stablish the actions
         //that can be made by the alert created previously.
         let actionAlert = UIAlertAction(title: "Add new task", style: .default)
@@ -76,7 +75,6 @@ class ToDoListViewController: UITableViewController {
             else
             {
                 print("An error occurred")
-                self.present(errorAlert, animated: true, completion: nil)
             }
             
         }
