@@ -5,16 +5,27 @@
 //  Created by Philipp Muellauer on 02/12/2019.
 //  Copyright © 2019 App Brewery. All rights reserved.
 //
-//HOLI
 import UIKit
 
 class ToDoListViewController: UITableViewController {
 
-    var listElements = ["Element 1", "Element 2", "Element 3"]
+    var defaults = UserDefaults.standard
     
-    override func viewDidLoad() {
+    var listElements = [Item]()
+    
+    override func viewDidLoad()
+    {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
+        
+        for i in 1...30
+        {
+            listElements.append(Item(title: "Item \(i)", done: false))
+        }
+        
+        if let items = defaults.array(forKey: K.toDoListKey) as? [Item]
+        {
+            listElements = items
+        }
     }
 
 //MARK: -DATASOURCE
@@ -28,7 +39,16 @@ class ToDoListViewController: UITableViewController {
     {
         let cell = tableView.dequeueReusableCell(withIdentifier: K.cellName, for: indexPath)
         
-        cell.textLabel?.text = listElements[indexPath.row]
+        cell.textLabel?.text = listElements[indexPath.row].title
+        
+        if listElements[indexPath.row].done
+        {
+            cell.accessoryType = .checkmark
+        }
+        else
+        {
+            cell.accessoryType = .none
+        }
         
         return cell
     }
@@ -40,14 +60,19 @@ class ToDoListViewController: UITableViewController {
         print(listElements[indexPath.row])
         
         //Code to verify if the cell selected needs a checkmark to be added or removed.
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark
+        
+        /*if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark
         {
             tableView.cellForRow(at: indexPath)?.accessoryType = .none
         }
         else
         {
             tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        }*/
+        
+        listElements[indexPath.row].done = !listElements[indexPath.row].done
+        
+        tableView.reloadData()
         
         //Method to disabled the highlighting effect in each cell selected.
         tableView.deselectRow(at: indexPath, animated: true)
@@ -69,7 +94,10 @@ class ToDoListViewController: UITableViewController {
             
             if let userTask = textFieldAlert.text
             {
-                self.listElements.append(userTask)
+                self.listElements.append(Item(title: userTask, done: false))
+                
+                self.defaults.set(self.listElements, forKey: K.toDoListKey)
+                
                 self.tableView.reloadData()
             }
             else
