@@ -8,10 +8,10 @@
 import UIKit
 
 class ToDoListViewController: UITableViewController {
-
-    var defaults = UserDefaults.standard
     
     var listElements = [Item]()
+    
+    let dataPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     
     override func viewDidLoad()
     {
@@ -22,10 +22,10 @@ class ToDoListViewController: UITableViewController {
             listElements.append(Item(title: "Item \(i)", done: false))
         }
         
-        if let items = defaults.array(forKey: K.toDoListKey) as? [Item]
+        /*if let items = defaults.array(forKey: K.toDoListKey) as? [Item]
         {
             listElements = items
-        }
+        }*/
     }
 
 //MARK: -DATASOURCE
@@ -41,14 +41,7 @@ class ToDoListViewController: UITableViewController {
         
         cell.textLabel?.text = listElements[indexPath.row].title
         
-        if listElements[indexPath.row].done
-        {
-            cell.accessoryType = .checkmark
-        }
-        else
-        {
-            cell.accessoryType = .none
-        }
+        cell.accessoryType = listElements[indexPath.row].done ? .checkmark : .none
         
         return cell
     }
@@ -71,6 +64,15 @@ class ToDoListViewController: UITableViewController {
         }*/
         
         listElements[indexPath.row].done = !listElements[indexPath.row].done
+        
+        do
+        {
+            try encodeData()
+        }
+        catch
+        {
+            print("Error occurred: \(error)")
+        }
         
         tableView.reloadData()
         
@@ -96,7 +98,14 @@ class ToDoListViewController: UITableViewController {
             {
                 self.listElements.append(Item(title: userTask, done: false))
                 
-                self.defaults.set(self.listElements, forKey: K.toDoListKey)
+                do
+                {
+                    try self.encodeData()
+                }
+                catch
+                {
+                    print("An error occurred: \(error)")
+                }
                 
                 self.tableView.reloadData()
             }
@@ -130,4 +139,19 @@ class ToDoListViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
+    func encodeData() throws
+    {
+        let encoder = PropertyListEncoder()
+        
+        let data = try encoder.encode(self.listElements)
+        
+        if let safeDataPath = self.dataPath
+        {
+            try data.write(to: safeDataPath)
+        }
+        else
+        {
+            throw ErrorsGroup.MissingDataPath
+        }
+    }
 }

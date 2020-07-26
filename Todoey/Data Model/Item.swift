@@ -8,7 +8,14 @@
 
 import Foundation
 
-class Item
+/*
+ Item conforms to Encodable protocol, so it means that an Item type
+ is able to encode itself into a plist or into a JSON.
+ It is important to mention that a class can be Encodable if all of its
+ properties have standard data types.
+ */
+
+class Item : Encodable
 {
     var title : String
     var done : Bool
