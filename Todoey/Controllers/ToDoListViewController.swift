@@ -17,15 +17,18 @@ class ToDoListViewController: UITableViewController {
     {
         super.viewDidLoad()
         
-        for i in 1...30
+        do
         {
-            listElements.append(Item(title: "Item \(i)", done: false))
+            try loadItems()
         }
-        
-        /*if let items = defaults.array(forKey: K.toDoListKey) as? [Item]
+        catch is ErrorsGroup
         {
-            listElements = items
-        }*/
+            print("An error from ErrorsGroup occurred")
+        }
+        catch
+        {
+            print("An unexpected error occurred: \(error)")
+        }
     }
 
 //MARK: -DATASOURCE
@@ -154,4 +157,22 @@ class ToDoListViewController: UITableViewController {
             throw ErrorsGroup.MissingDataPath
         }
     }
+    
+    func loadItems() throws
+    {
+        guard let safeDataPath = dataPath else
+        {
+            throw ErrorsGroup.MissingDataPath
+        }
+        
+        guard let data = try? Data(contentsOf: safeDataPath) else
+        {
+            throw ErrorsGroup.DataNotFound
+        }
+        
+        let decoder = PropertyListDecoder()
+        
+        listElements = try decoder.decode([Item].self, from: data)
+    }
+
 }

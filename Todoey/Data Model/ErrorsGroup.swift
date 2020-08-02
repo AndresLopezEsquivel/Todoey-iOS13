@@ -11,4 +11,5 @@ import Foundation
 enum ErrorsGroup : Error
 {
     case MissingDataPath
+    case DataNotFound
 }
