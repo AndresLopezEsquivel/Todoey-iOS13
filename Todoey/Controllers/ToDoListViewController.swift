@@ -6,12 +6,14 @@
 //  Copyright © 2019 App Brewery. All rights reserved.
 //
 import UIKit
+import CoreData
 
 class ToDoListViewController: UITableViewController {
     
     var listElements = [Item]()
     
-    let dataPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+
     
     override func viewDidLoad()
     {
@@ -19,16 +21,13 @@ class ToDoListViewController: UITableViewController {
         
         do
         {
-            try loadItems()
-        }
-        catch is ErrorsGroup
-        {
-            print("An error from ErrorsGroup occurred")
+            try loadData()
         }
         catch
         {
-            print("An unexpected error occurred: \(error)")
+            print("An error occurred while loading data: \(error)")
         }
+        
     }
 
 //MARK: -DATASOURCE
@@ -70,7 +69,7 @@ class ToDoListViewController: UITableViewController {
         
         do
         {
-            try encodeData()
+            try saveData()
         }
         catch
         {
@@ -99,18 +98,24 @@ class ToDoListViewController: UITableViewController {
             
             if let userTask = textFieldAlert.text
             {
-                self.listElements.append(Item(title: userTask, done: false))
+                let newItem = Item(context: self.context)
+                
+                newItem.title = userTask
+                
+                newItem.done = false
+                
+                self.listElements.append(newItem)
                 
                 do
                 {
-                    try self.encodeData()
+                    try self.saveData()
                 }
                 catch
                 {
                     print("An error occurred: \(error)")
                 }
                 
-                self.tableView.reloadData()
+                
             }
             else
             {
@@ -142,37 +147,26 @@ class ToDoListViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
-    func encodeData() throws
+    func saveData() throws
     {
-        let encoder = PropertyListEncoder()
+        try context.save()
         
-        let data = try encoder.encode(self.listElements)
-        
-        if let safeDataPath = self.dataPath
-        {
-            try data.write(to: safeDataPath)
-        }
-        else
-        {
-            throw ErrorsGroup.MissingDataPath
-        }
+        self.tableView.reloadData()
     }
     
-    func loadItems() throws
+    func loadData() throws
     {
-        guard let safeDataPath = dataPath else
-        {
-            throw ErrorsGroup.MissingDataPath
-        }
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
         
-        guard let data = try? Data(contentsOf: safeDataPath) else
-        {
-            throw ErrorsGroup.DataNotFound
-        }
+        listElements = try context.fetch(request)
         
-        let decoder = PropertyListDecoder()
-        
-        listElements = try decoder.decode([Item].self, from: data)
+        self.tableView.reloadData()
     }
 
+}
+
+//MARK: - UISearchBarDelegate
+extension ToDoListViewController : UISearchBarDelegate
+{
+    
 }
