@@ -154,10 +154,8 @@ class ToDoListViewController: UITableViewController {
         self.tableView.reloadData()
     }
     
-    func loadData() throws
+    func loadData(with request : NSFetchRequest<Item> = Item.fetchRequest()) throws
     {
-        let request : NSFetchRequest<Item> = Item.fetchRequest()
-        
         listElements = try context.fetch(request)
         
         self.tableView.reloadData()
@@ -168,5 +166,49 @@ class ToDoListViewController: UITableViewController {
 //MARK: - UISearchBarDelegate
 extension ToDoListViewController : UISearchBarDelegate
 {
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar)
+    {
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        
+        if let searchBarText = searchBar.text
+        {
+            request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBarText)
+            
+            request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+            
+            do
+            {
+                try loadData(with: request)
+            }
+            catch
+            {
+                print("An error occurred while using search bar: \(error)")
+            }
+        }
+        else
+        {
+            print("The search bar has no text")
+        }
+        
+    }
     
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String)
+    {
+        if searchBar.text!.isEmpty
+        {
+            do
+            {
+                try loadData()
+                
+                DispatchQueue.main.async
+                {
+                    searchBar.resignFirstResponder()
+                }
+            }
+            catch
+            {
+                print("An error occurred while using search bar: \(error)")
+            }
+        }
+    }
 }
