@@ -6,11 +6,21 @@
 //  Copyright © 2019 App Brewery. All rights reserved.
 //
 import UIKit
-import CoreData
+import RealmSwift
 
 class ToDoListViewController: UITableViewController {
     
-    var listElements = [Item]()
+    var listElements : Results<Item>?
+    
+    var realm = try! Realm()
+    
+    var selectedCategory : Category?
+    {
+        didSet
+        {
+            loadData()
+        }
+    }
     
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
 
@@ -19,31 +29,29 @@ class ToDoListViewController: UITableViewController {
     {
         super.viewDidLoad()
         
-        do
-        {
-            try loadData()
-        }
-        catch
-        {
-            print("An error occurred while loading data: \(error)")
-        }
-        
     }
 
 //MARK: -DATASOURCE
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int
     {
-        return listElements.count
+        return listElements?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell
     {
         let cell = tableView.dequeueReusableCell(withIdentifier: K.cellName, for: indexPath)
         
-        cell.textLabel?.text = listElements[indexPath.row].title
-        
-        cell.accessoryType = listElements[indexPath.row].done ? .checkmark : .none
+        if let item = listElements?[indexPath.row]
+        {
+            cell.textLabel?.text = item.title
+            
+            cell.accessoryType = item.done ? .checkmark : .none
+        }
+        else
+        {
+            cell.textLabel?.text = "No items added"
+        }
         
         return cell
     }
@@ -52,7 +60,6 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath)
     {
-        print(listElements[indexPath.row])
         
         //Code to verify if the cell selected needs a checkmark to be added or removed.
         
@@ -65,20 +72,31 @@ class ToDoListViewController: UITableViewController {
             tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
         }*/
         
-        listElements[indexPath.row].done = !listElements[indexPath.row].done
+        //listElements[indexPath.row].done = !listElements[indexPath.row].done
         
-        do
+        if let item = listElements?[indexPath.row]
         {
-            try saveData()
+            do
+            {
+                try realm.write
+                {
+                    item.done = !item.done
+                }
+            }
+            catch
+            {
+                print("There was an error while trying to update data")
+                print(error)
+            }
         }
-        catch
+        else
         {
-            print("Error occurred: \(error)")
+            print("There is no item")
         }
         
         tableView.reloadData()
         
-        //Method to disabled the highlighting effect in each cell selected.
+        //Method to disable the highlighting effect in each cell selected.
         tableView.deselectRow(at: indexPath, animated: true)
     }
     
@@ -98,24 +116,36 @@ class ToDoListViewController: UITableViewController {
             
             if let userTask = textFieldAlert.text
             {
-                let newItem = Item(context: self.context)
                 
-                newItem.title = userTask
-                
-                newItem.done = false
-                
-                self.listElements.append(newItem)
-                
-                do
+                if let currentCategory = self.selectedCategory
                 {
-                    try self.saveData()
+                    let newItem = Item()
+                    
+                    newItem.title = userTask
+                    
+                    newItem.done = false
+                    
+                    newItem.dateCreated = Date()
+                    
+                    do
+                    {
+                        try self.realm.write
+                        {
+                            currentCategory.items.append(newItem)
+                        }
+                    }
+                    catch
+                    {
+                        print("An error occurred: \(error)")
+                    }
                 }
-                catch
+                else
                 {
-                    print("An error occurred: \(error)")
+                    print("There is no category selected")
                 }
                 
-                
+                self.tableView.reloadData()
+ 
             }
             else
             {
@@ -147,16 +177,10 @@ class ToDoListViewController: UITableViewController {
         present(alert, animated: true, completion: nil)
     }
     
-    func saveData() throws
+    func loadData()
     {
-        try context.save()
         
-        self.tableView.reloadData()
-    }
-    
-    func loadData(with request : NSFetchRequest<Item> = Item.fetchRequest()) throws
-    {
-        listElements = try context.fetch(request)
+        listElements = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
         
         self.tableView.reloadData()
     }
@@ -168,46 +192,27 @@ extension ToDoListViewController : UISearchBarDelegate
 {
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar)
     {
-        let request : NSFetchRequest<Item> = Item.fetchRequest()
-        
-        if let searchBarText = searchBar.text
+        if let dataSearched = searchBar.text
         {
-            request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBarText)
+            listElements = listElements?.filter(NSPredicate(format: "title CONTAINS[cd] %@", dataSearched)).sorted(byKeyPath: "dateCreated", ascending: true)
             
-            request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-            
-            do
-            {
-                try loadData(with: request)
-            }
-            catch
-            {
-                print("An error occurred while using search bar: \(error)")
-            }
+            tableView.reloadData()
         }
         else
         {
-            print("The search bar has no text")
+            print("There isn't data to search")
         }
-        
     }
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String)
     {
         if searchBar.text!.isEmpty
         {
-            do
+            loadData()
+            
+            DispatchQueue.main.async
             {
-                try loadData()
-                
-                DispatchQueue.main.async
-                {
-                    searchBar.resignFirstResponder()
-                }
-            }
-            catch
-            {
-                print("An error occurred while using search bar: \(error)")
+                searchBar.resignFirstResponder()
             }
         }
     }

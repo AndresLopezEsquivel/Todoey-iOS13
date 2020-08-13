@@ -7,18 +7,18 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryTableViewController: UITableViewController {
     
-    var listCategories = [Category]()
+    var realm = try! Realm()
     
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    var listCategories : Results<Category>?
     
     override func viewDidLoad()
     {
         super.viewDidLoad()
-
+        
         do
         {
             try loadData()
@@ -34,14 +34,14 @@ class CategoryTableViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int
     {
-        return listCategories.count
+        return listCategories?.count ?? 1
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell
     {
         let cell = tableView.dequeueReusableCell(withIdentifier: K.cellCategory, for: indexPath)
         
-        cell.textLabel?.text = listCategories[indexPath.row].name
+        cell.textLabel?.text = listCategories?[indexPath.row].name ?? "There are not categories available"
         
         return cell
     }
@@ -51,6 +51,21 @@ class CategoryTableViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath)
     {
         performSegue(withIdentifier: K.segueToItems, sender: self)
+    }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?)
+    {
+        let toDoListVC = segue.destination as! ToDoListViewController
+        
+        if let indexPathRow = tableView.indexPathForSelectedRow?.row
+        {
+            toDoListVC.selectedCategory = listCategories?[indexPathRow]
+        }
+        else
+        {
+            print("Segue Preparation Fails")
+        }
+        
     }
     
     //MARK: - ADD CATEGORY PROCESSES
@@ -76,15 +91,13 @@ class CategoryTableViewController: UITableViewController {
             
             if let categoryName = textField.text
             {
-                let newCategory = Category(context: self.context)
+                let newCategory = Category()
                 
                 newCategory.name = categoryName
                 
-                self.listCategories.append(newCategory)
-                
                 do
                 {
-                    try self.saveData()
+                    try self.saveData(category: newCategory)
                 }
                 catch
                 {
@@ -109,16 +122,19 @@ class CategoryTableViewController: UITableViewController {
 
 extension CategoryTableViewController
 {
-    func loadData(with request : NSFetchRequest<Category> = Category.fetchRequest()) throws
+    func loadData() throws
     {
-        listCategories = try context.fetch(request)
+        listCategories = realm.objects(Category.self)
         
         tableView.reloadData()
     }
     
-    func saveData() throws
+    func saveData(category data : Category) throws
     {
-        try context.save()
+        try realm.write
+        {
+            realm.add(data)
+        }
         
         tableView.reloadData()
     }
@@ -130,23 +146,12 @@ extension CategoryTableViewController : UISearchBarDelegate
 {
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar)
     {
-        let request : NSFetchRequest<Category> = Category.fetchRequest()
         
         if let dataSearched = searchBar.text
         {
-            request.predicate = NSPredicate(format: "name CONTAINS[cd] %@", dataSearched)
+            listCategories = listCategories?.filter(NSPredicate(format: "name CONTAINS[cd] %@", dataSearched)).sorted(byKeyPath: "name", ascending: true)
             
-            request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-            
-            do
-            {
-                try loadData(with: request)
-            }
-            catch
-            {
-                print("An error occurred while loading data")
-                print(error)
-            }
+            tableView.reloadData()
         }
         else
         {
